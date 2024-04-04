@@ -1,20 +1,28 @@
-# Introduction 
-TODO: Give a short introduction of your project. Let this section explain the objectives or the motivation behind this project. 
+# Development Machine Setup
+1. Install DASYLab 202x
+1. Clone this repo.
+1. Simlink python dependencies into the appropriate DASYLab directories.
+   - `<REPO_ROOT>/digilent_waveforms/` to `<DASYLAB_DIR>\python\Lib\digilent_waveforms/`
+   - Example powershell commands: `cmd /c mklink /d "C:\Program Files (x86)\DASYLab 2022_en\python\Lib\digilent_waveforms" "C:\git\digilent\waveforms-dasylab-module\digilent_waveforms"`
 
-# Getting Started
-TODO: Guide users through getting your code up and running on their own system. In this section you can talk about:
-1.	Installation process
-2.	Software dependencies
-3.	Latest releases
-4.	API references
+1. Place a script block on the DASYLab worksheet and select **Only outputs**
 
-# Build and Test
-TODO: Describe and show how to build your code and run the tests. 
+1. Click **Load**
+1. Select <REPO_ROOT>/digilent_waveforms_dasylab_module.py file 
+1. Click **OK**
+1. Save the worksheet.
 
-# Contribute
-TODO: Explain how other users and developers can contribute to make your code better. 
+# Development process
+1. Open the DASYLab worksheet `<REPO_ROOT>/Digilent WaveForms Module.DSB`
+2. Make changes to `digilent_waveforms_dasylab_module.py`
+3. Reload the python file to get the changes.
+   1. On the DASYLab worksheet, double click the **Script Module** named **DWF**
+   1. Click **Load**
+   1. Select `<REPO_ROOT>/digilent_waveforms_dasylab_module.py` 
+   1. Click **OK**
+4. Run the worksheet.  
+5. Repeat setps 3-4
 
-If you want to learn more about creating good readme files then refer the following [guidelines](https://docs.microsoft.com/en-us/azure/devops/repos/git/create-a-readme?view=azure-devops). You can also seek inspiration from the below readme files:
-- [ASP.NET Core](https://github.com/aspnet/Home)
-- [Visual Studio Code](https://github.com/Microsoft/vscode)
-- [Chakra Core](https://github.com/Microsoft/ChakraCore)
+# Release
+1. Double click the script module on the DASYLab worksheet
+1. Click **Export**
