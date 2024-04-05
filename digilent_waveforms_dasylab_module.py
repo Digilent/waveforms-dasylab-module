@@ -1,9 +1,11 @@
-# -*- coding: iso-8859-15 -*-
 import Ly  # type: ignore
+from digilent_waveforms import DwfException
 import lys  # type: ignore
+import sys
 
+from digilent_waveforms_dasylab._version import __version__
 from ctypes import *  # type: ignore
-from digilent_waveforms import Manager, Device, DwfException
+from digilent_waveforms import Manager, Device
 
 
 class info(object):
@@ -137,16 +139,24 @@ class pscript(lys.mclass):
         """
         One time setup on start of measurement
         """
+
+        print(sys.path)
         try:
+            # Print this package's version number
+            print(f"Digilent WaveForms DASYLab Module version {__version__}")
+
             # Initialize the Digilent WaveForms Manager
             self.pvar.wf_manager = Manager()
 
-            # Print WaveForms version information
-            print(f"Digilent WaveForms version {self.pvar.wf_manager.get_waveforms_version()}")
+            # Print WaveForms python module and WaveForms SDK version information
+            print(f"Digilent WaveForms Python Module version {self.pvar.wf_manager.module_version}")
+            print(f"Digilent WaveForms SDK version {self.pvar.wf_manager.get_waveforms_version()}")
 
             # Open first WaveForms device
-
             self.pvar.wf_device = self.pvar.wf_manager.open_first_device()
+
+            # Print device information
+            print(self.pvar.wf_device.get_device_info_str())
         except DwfException as e:
             print(e.message)
             print(e.error)
