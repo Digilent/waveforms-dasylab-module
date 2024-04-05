@@ -5,6 +5,13 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Ex: AI Record",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/digilent_waveforms/examples/AnalogInput_Record.py",
+      "console": "integratedTerminal"
+    },
+    {
       "name": "Ex: Close All Devices",
       "type": "debugpy",
       "request": "launch",

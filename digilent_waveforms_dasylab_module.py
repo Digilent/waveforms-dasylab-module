@@ -157,6 +157,11 @@ class pscript(lys.mclass):
 
             # Print device information
             print(self.pvar.wf_device.get_device_info_str())
+
+            # Configure analog inputs and enable channel 0
+            self.pvar.wf_device.ai_config(1000, 1000)
+            self.pvar.wf_device.ai_set_channel_enabled(0, True)
+
         except DwfException as e:
             print(e.message)
             print(e.error)
@@ -209,18 +214,23 @@ class pscript(lys.mclass):
         next_time = self.pvar.m_outputs_done * btime
 
         # print(f"sdist = {sdist}")
-        print(f"self.pvar.m_outputs_done = {self.pvar.m_outputs_done}")
+        # print(f"self.pvar.m_outputs_done = {self.pvar.m_outputs_done}")
         # print(f"this_time = {this_time}  next_time = {next_time}")
 
-        if this_time >= next_time:
-            for channel in range(self.NumOutChannel):
-                OutBuff = self.GetOutputBlock(channel)
-                for i in range(bsize):
-                    OutBuff[i] = self.ProcessValue((next_time, i, sdist), channel)
-                OutBuff.StartTime = next_time
-                OutBuff.SampleDistance = sdist
-                OutBuff.BlockSize = bsize
-                OutBuff.Release()
-            self.pvar.m_outputs_done += 1
+        # if this_time >= next_time:
+        #     for channel in range(self.NumOutChannel):
+        #         OutBuff = self.GetOutputBlock(channel)
+        #         for i in range(bsize):
+        #             OutBuff[i] = self.ProcessValue((next_time, i, sdist), channel)
+        #         OutBuff.StartTime = next_time
+        #         OutBuff.SampleDistance = sdist
+        #         OutBuff.BlockSize = bsize
+        #         OutBuff.Release()
+        #     self.pvar.m_outputs_done += 1
+
+        # Check if AI acquisition is complete
+        self.pvar.wf_device
+        if sts.value == DwfStateDone.value:
+            break
 
         return True
