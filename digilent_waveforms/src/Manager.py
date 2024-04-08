@@ -3,14 +3,22 @@ from ctypes import *  # type: ignore
 from digilent_waveforms.src.Device import Device
 from digilent_waveforms.src.constants.dwfconstants import *
 from digilent_waveforms.src.components.DwfException import DwfException
-from digilent_waveforms.src.Types import DeviceType
+from digilent_waveforms.src.constants.dwf_types import DeviceType, DeviceCloseBehavior
+import sys
 
 
 class Manager:
     module_version = "-.-.-"
 
     def __init__(self):
-        self.dwf = cdll.dwf
+        # Open dwf shared object
+        if sys.platform.startswith("win"):
+            self.dwf = cdll.dwf
+        elif sys.platform.startswith("darwin"):
+            self.dwf = cdll.LoadLibrary("/Library/Frameworks/dwf.framework/dwf")
+        else:
+            self.dwf = cdll.LoadLibrary("libdwf.so")
+
         self.module_version = __version__
 
     def get_waveforms_version(self) -> str:
@@ -32,6 +40,7 @@ class Manager:
         actual_device_index = 0 if device_index < 0 else device_index
         id, revision = self.get_device_id_and_revision(actual_device_index)
         return Device(
+            self.dwf,
             device_index=actual_device_index,
             device_handle=device_handle,
             name=self.get_device_name(actual_device_index),
@@ -66,3 +75,6 @@ class Manager:
         serial_number_buffer = create_string_buffer(16)
         self.dwf.FDwfEnumSN(device_index, serial_number_buffer)
         return serial_number_buffer.value.decode("utf-8")
+
+    def set_device_close_behavior(self, option: DeviceCloseBehavior) -> None:
+        self.dwf.FDwfParamSet(DwfParamOnClose, c_int(option.value))

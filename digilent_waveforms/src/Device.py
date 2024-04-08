@@ -3,7 +3,9 @@ import sys
 
 from digilent_waveforms.src.constants.dwfconstants import *
 from digilent_waveforms.src.components.DwfException import DwfException
-from digilent_waveforms.src.Types import DeviceType, AiAcquisitionMode, InstrumentState
+from digilent_waveforms.src.constants.dwf_types import DeviceType
+from digilent_waveforms.src.constants.ai_types import AiAcquisitionMode, InstrumentState
+from digilent_waveforms.src.components.AnalogOut import AnalogOut
 
 
 class Device:
@@ -14,6 +16,9 @@ class Device:
     revision: int = -1
     serial_number: str = ""
 
+    # Subsystems
+    AnalogOutput: AnalogOut
+
     ai_count = 0
     ao_count = 0
 
@@ -23,18 +28,17 @@ class Device:
     _ai_corrupted_count: int = 0
 
     def __init__(
-        self, device_index: int, device_handle: c_int, name: str, type: DeviceType, revision: int, serial_number: str
+        self,
+        dwf: CDLL,
+        device_index: int,
+        device_handle: c_int,
+        name: str,
+        type: DeviceType,
+        revision: int,
+        serial_number: str,
     ):
 
-        # Open dwf and store device handle
-        if sys.platform.startswith("win"):
-            self.dwf = cdll.dwf
-        elif sys.platform.startswith("darwin"):
-            self.dwf = cdll.LoadLibrary("/Library/Frameworks/dwf.framework/dwf")
-        else:
-            self.dwf = cdll.LoadLibrary("libdwf.so")
-
-        self.dwf = cdll.dwf
+        self.dwf = dwf
         self.device_index = device_index
         self.device_handle = device_handle
         self.name = name
@@ -45,6 +49,9 @@ class Device:
         # ---------- Enumerate device IO ----------
         self.ai_count = self._get_analog_input_count()
         self.ao_count = self._get_analog_output_count()
+
+        # Instantiate subsystems
+        self.AnalogOutput = AnalogOut(self.dwf, self.device_handle, self.ao_count)
 
     def ai_config(self, sample_frequency: float, buffer_size: int, reset_trigger=True, start_acquisition=True) -> None:
         # Prevent config options from being applied at each call.  Instead apply config options only when FDwfAnalogInConfigure is called.
@@ -93,6 +100,22 @@ class Device:
                 self.ai_set_range(channel, range)
         except DwfException as e:
             raise e
+
+    # # ---------- Range ----------
+    # def set_ranges(self, channels: list[int], ranges: list[float]) -> None:
+    #     # Ensure the number of channels matches the number of offsets states
+    #     if len(channels) != len(ranges):
+    #         msg = f"The specified number of channels ({len(channels)}) must match the specified number of ranges ({len(ranges)})"
+    #         raise DwfException(AnalogOutError.INTPUT_LENGTH_MISMATCH.value, msg, msg)
+
+    #     for i in range(0, len(channels)):
+    #         self.dwf.FDwfAnalogInChannelRangeSet(self.device_handle, c_int(channels[i]), c_double(ranges[i]))
+
+    # def set_range(self, channel: int, range: float) -> None:
+    #     return self.set_ranges([channel], [range])
+
+    # def set_range_all_channels(self, range: float) -> None:
+    #     return self.set_range(-1, range)
 
     def ai_apply_config(self, reset_trigger: bool = True, start_acquisition: bool = False) -> None:
         self.dwf.FDwfAnalogInConfigure(self.device_handle, c_int(reset_trigger), c_int(start_acquisition))
@@ -160,7 +183,8 @@ class Device:
                     return (data, self._ai_lost_count, self._ai_corrupted_count)
 
                 for channel_index in range(0, len(channels)):
-                    data[channel_index] += self.ai_read_sample_buffer(channels[channel_index], samples_available)
+                    samples = self.ai_read_sample_buffer(channels[channel_index], samples_available)
+                    data[channel_index] += samples
 
                 return (data, self._ai_lost_count, self._ai_corrupted_count)
 
@@ -185,7 +209,10 @@ class Device:
         )
 
     def ai_get_data_container(self, channels: list[int]) -> list[list[float]]:
-        return [[]] * len(channels)
+        data = []
+        for channel in channels:
+            data.append([])
+        return data
 
     def _ai_validate_channels(self, channels: list[int]) -> None:
         # Check if specified AI channels are valid

@@ -1,15 +1,4 @@
-# from typing_extensions import TypedDict
 from enum import Enum
-
-# DeviceInfo = TypedDict(
-#     "DeviceInfo",
-#     {
-#         "id": int,
-#         "name": str,
-#         "revision": int,
-#         "serial_number": str,
-#     },
-# )
 
 
 class DeviceType(Enum):
@@ -40,22 +29,7 @@ class DeviceType(Enum):
             return f"Unknown device type ({self.value})"
 
 
-class AiAcquisitionMode(Enum):
-    Single = 0
-    ScanShift = 1
-    ScanScreen = 2
-    Record = 3
-    Overs = 4
-    Single1 = 5
-
-
-class InstrumentState(Enum):
-    Ready = 0
-    Config = 4
-    Prefill = 5
-    Armed = 1
-    Wait = 7
-    Triggered = 3
-    Running = 3
-    NotDone = 6
-    Done = 2
+class DeviceCloseBehavior(Enum):
+    ContinueRunning = 0
+    StopRunning = 1
+    Shutdown = 2
