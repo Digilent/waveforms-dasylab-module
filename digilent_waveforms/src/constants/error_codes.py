@@ -16,6 +16,8 @@ class ManagerError(Enum):
 # Analog input subsystem - 02xxxx
 class AnalogInputErorr(Enum):
     UNKNOWN = 20000
+    INTPUT_LENGTH_MISMATCH = 20001
+    TIMEOUT_WAITING_SAMPLES = 20002
 
 
 # Analog output subsystem - 03xxxx
