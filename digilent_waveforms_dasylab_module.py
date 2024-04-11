@@ -48,6 +48,7 @@ class pvar(object):
 
         self.wf_manager: Manager
         self.wf_device: Device
+        self.ai_data_buffer: list[float]
 
         import math
 
@@ -159,8 +160,10 @@ class pscript(lys.mclass):
             print(self.pvar.wf_device.get_device_info_str())
 
             # Configure analog inputs and enable channel 0
-            self.pvar.wf_device.ai_config(1000, 1000)
-            self.pvar.wf_device.ai_set_channel_enabled(0, True)
+            self.pvar.wf_device.AnalogInput.record([0], sample_rate=1000, range=10)
+
+            self.pvar.m_outputs_done = 0
+            self.pvar.ai_data_buffer = []
 
         except DwfException as e:
             print(e.message)
@@ -213,24 +216,49 @@ class pscript(lys.mclass):
         this_time = Ly.GetTimeBaseTime(2)
         next_time = self.pvar.m_outputs_done * btime
 
-        # print(f"sdist = {sdist}")
+        # print(f"bsize = {bsize}    sdist = {sdist}   btime = {btime}")
         # print(f"self.pvar.m_outputs_done = {self.pvar.m_outputs_done}")
         # print(f"this_time = {this_time}  next_time = {next_time}")
 
-        # if this_time >= next_time:
-        #     for channel in range(self.NumOutChannel):
-        #         OutBuff = self.GetOutputBlock(channel)
-        #         for i in range(bsize):
-        #             OutBuff[i] = self.ProcessValue((next_time, i, sdist), channel)
-        #         OutBuff.StartTime = next_time
-        #         OutBuff.SampleDistance = sdist
-        #         OutBuff.BlockSize = bsize
-        #         OutBuff.Release()
-        #     self.pvar.m_outputs_done += 1
+        # Read data and append to software sample buffer
+        try:
+            ai_read_data, lost_count, corrupt_count = self.pvar.wf_device.AnalogInput.read_available_samples([0])
+            self.pvar.ai_data_buffer += ai_read_data[0]
+            # print(f"Read {len(ai_sample_data[0])} samples.  lost_count={lost_count}  corrupt_count={corrupt_count}")
+            # print(f"Read {len(ai_read_data[0])} samples.  AI buffer contains {len(self.pvar.ai_data_buffer )} samples")
+            print(f"{len(self.pvar.ai_data_buffer )}")
 
-        # Check if AI acquisition is complete
-        self.pvar.wf_device
-        if sts.value == DwfStateDone.value:
-            break
+            if len(self.pvar.ai_data_buffer) >= bsize:
+                # Full block of data ready, output it
+                # print("Outputting buffer...")
+
+                # Build output buffer
+                buffer_num_samples = len(ai_read_data)
+                buffer_size_seconds = buffer_num_samples * sdist
+                buffer_start_time = this_time - buffer_size_seconds
+
+                OutBuff = self.GetOutputBlock(0)
+                for i in range(bsize):
+                    OutBuff[i] = self.pvar.ai_data_buffer[i]
+                OutBuff.StartTime = next_time
+                OutBuff.SampleDistance = sdist
+                OutBuff.BlockSize = bsize
+                OutBuff.Release()
+
+                # Increment block output count and removed output data from sample buffer
+                self.pvar.m_outputs_done += 1
+                self.pvar.ai_data_buffer = self.pvar.ai_data_buffer[bsize:]
+
+            #     for channel in range(self.NumOutChannel):
+            #         OutBuff = self.GetOutputBlock(channel)
+            #         for i in range(bsize):
+            #             OutBuff[i] = self.ProcessValue((next_time, i, sdist), channel)
+            #         OutBuff.StartTime = next_time
+            #         OutBuff.SampleDistance = sdist
+            #         OutBuff.BlockSize = bsize
+            #         OutBuff.Release()
+            #     self.pvar.m_outputs_done += 1
+        except Exception as e:
+            print(e)
 
         return True
