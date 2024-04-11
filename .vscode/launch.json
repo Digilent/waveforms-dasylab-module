@@ -5,10 +5,17 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Ex: AI Record",
+      "name": "Ex: AI - Record",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/digilent_waveforms/examples/AnalogInput_Record.py",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Ex: AO/AI - DC",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/digilent_waveforms/examples/AnalogOutIn_DC.py",
       "console": "integratedTerminal"
     },
     {
