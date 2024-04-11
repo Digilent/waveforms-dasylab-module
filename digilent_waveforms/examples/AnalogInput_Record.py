@@ -31,14 +31,14 @@ try:
         timeout,
     )
 
-    now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    filename = f"Sample Date {now}.csv"
-    print(f"Sampling complete, writing to {filename}")
-
     # Close the device handle
     wf_manager.close_all_devices()
 
     # Save to .csv
+    now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    filename = f"Sample Date {now}.csv"
+    print(f"Sampling complete, writing to {filename}")
+
     with open(filename, "w") as csv_file:
         # Iterate over samples
         for sample_index in range(0, len(ai_sample_data[0])):
