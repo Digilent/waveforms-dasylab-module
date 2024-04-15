@@ -3,8 +3,14 @@
 1. Clone this repo.
 1. Simlink python dependencies into the appropriate DASYLab directories.
    - `<REPO_ROOT>/digilent_waveforms` to `<DASYLAB_DIR>\python\Lib\site-packages\digilent_waveforms`
+   - `<REPO_ROOT>/digilent_waveforms` to `<DASYLAB_DIR>\pool\files\digilent_waveforms`
+   - `<REPO_ROOT>/dasylab/build/script-package/digilent.dly` to `<DASYLAB_DIR>\pool\files\digilent.dly`
+   - `<REPO_ROOT>/digilent_waveforms` to `<DASYLAB_DIR>\python\Lib\site-packages\digilent_waveforms`
    - `<REPO_ROOT>/digilent_waveforms_dasylab` to `<DASYLAB_DIR>\python\Lib\site-packages\digilent_waveforms_dasylab`
    - Example powershell commands:  
+       - `cmd /c mklink /d "C:\Program Files (x86)\DASYLab 2022_en\python\Lib\site-packages\digilent_waveforms" "C:\git\digilent\sw-waveforms-dasylab-module\digilent_waveforms"`
+       - `cmd /c mklink /d "C:\Program Files (x86)\DASYLab 2022_en\pool\files\digilent_waveforms" "C:\git\digilent\sw-waveforms-dasylab-module\digilent_waveforms"`
+       - `cmd /c mklink "C:\Program Files (x86)\DASYLab 2022_en\pool\files\digilent.dly" "C:\git\digilent\sw-waveforms-dasylab-module\dasylab\build\script-package\digilent.dly"`
        - `cmd /c mklink /d "C:\Program Files (x86)\DASYLab 2022_en\python\Lib\site-packages\digilent_waveforms" "C:\git\digilent\sw-waveforms-dasylab-module\digilent_waveforms"`
        - `cmd /c mklink /d "C:\Program Files (x86)\DASYLab 2022_en\python\Lib\site-packages\digilent_waveforms_dasylab" "C:\git\digilent\sw-waveforms-dasylab-module\digilent_waveforms_dasylab"`
 
@@ -27,8 +33,18 @@
 5. Repeat setps 3-4
 
 # Release
+1. Export the module(s)
+   - In DASYLab, open a script module, click **export**, click **OK**.  This exports the module to `<REPO_ROOT>\dasylab\build\script-module`
+   - Note - Make sure to clear `<REPO_ROOT>/dasylab/build/script-module/`.  If you change names in DASYLab script module export dialog you'll end up with multiple copies in this directory and things will break.
+1. Create a script package
+   - in DASYLAB, click **Options>>Create Script Package...**.  Click **OK**.  This exports the script package to `<REPO_ROOT>\dasylab\build\script-package`
+1. Use DASYLab configurator to create the extension package
+   - Open DASYLab configurator, click **Create Package**, open `<REPO_ROOT>\dasylab\digilent=package-definition.dlpdef`.  Make changes, build, save, test.
+
+**Details**
 1. Double click the script module on the DASYLab worksheet
 1. Click **Export**
+
 
 # Developer Notes
 - DASYLab looks for python imports in `<DASYLAB_DIR>\python\Lib\site-packages\`.  In order to minimize name collisions it is best to place all python dependencies in a subdirectory and include the subdirectory when importing.
