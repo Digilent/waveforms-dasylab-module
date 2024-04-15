@@ -226,7 +226,7 @@ class pscript(lys.mclass):
             self.pvar.ai_data_buffer += ai_read_data[0]
             # print(f"Read {len(ai_sample_data[0])} samples.  lost_count={lost_count}  corrupt_count={corrupt_count}")
             # print(f"Read {len(ai_read_data[0])} samples.  AI buffer contains {len(self.pvar.ai_data_buffer )} samples")
-            print(f"{len(self.pvar.ai_data_buffer )}")
+            # print(f"{len(self.pvar.ai_data_buffer )}")
 
             if len(self.pvar.ai_data_buffer) >= bsize:
                 # Full block of data ready, output it
