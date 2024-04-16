@@ -33,3 +33,18 @@ class DeviceCloseBehavior(Enum):
     ContinueRunning = 0
     StopRunning = 1
     Shutdown = 2
+
+
+class DeviceInfo:
+    index: int
+    type: DeviceType
+    name: str
+    serial_number: str
+    revision: int
+
+    def __init__(self, index: int, type: DeviceType, name: str, serial_number: str, revision: int):
+        self.index = index
+        self.type = type
+        self.name = name
+        self.serial_number = serial_number
+        self.revision = revision

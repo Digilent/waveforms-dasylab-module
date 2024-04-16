@@ -2,53 +2,49 @@ import Ly  # type: ignore
 from digilent_waveforms import DwfException
 import lys  # type: ignore
 import sys
+from enum import Enum
+import logging
+
 
 from digilent_waveforms_dasylab._version import __version__
 from ctypes import *  # type: ignore
-from digilent_waveforms import Manager, Device
+from digilent_waveforms import Manager, Device, DeviceInfo
+from digilent_waveforms_dasylab.components.Logger import Logger
+
+# Config logging level
+Logger.setLevel(logging.DEBUG)
+
+
+class SettingName(Enum):
+    SelectedDevice = "Device"
+    SampleRate = "Sample rate"
 
 
 class info(object):
+    selected_device: str = ""
+    sample_rate = 1000
+
     def __init__(self):
-        # (oo)
-        # Variables for settings
-        # Click on the help button to get more information.
-        # Example variables
-        self.m_a = 1.0
-        self.c_b = [
-            0.1,
-            1.1,
-            2.1,
-            3.1,
-            4.1,
-            5.1,
-            6.1,
-            7.1,
-            8.1,
-            9.1,
-            10.1,
-            11.1,
-            12.1,
-            13.1,
-            14.1,
-            15.1,
-        ]
-        self.c_c = [0.0 for n in range(16)]
+        print("info()")
 
 
 class pvar(object):
     def __init__(self):
-        # (oo)
-        # Working variables
-        # Click on the help button to get more information.
-        # Example variables
+        """
+        Object to store temporary variables (not persisted to DASYLab worksheet file)
+        """
         self.m_outputs_done = 0
-        self.m_m = 0.0
-        self.c_n = [1.0 for n in range(16)]
 
         self.wf_manager: Manager
+        self.devices_info: list[DeviceInfo] = []
+        self.devices_selection_options: list[str] = []
+        self.selected_device: str = ""
+
         self.wf_device: Device
+        self.sample_rate_min: float  # In S/s
+        self.sample_rate_max: float  # In S/s
         self.ai_data_buffer: list[float]
+        # self.logger: logging.Logger
 
         import math
 
@@ -59,6 +55,18 @@ class pscript(lys.mclass):
     def __init__(self, magic):
         self.info = info()
         self.pvar = pvar()
+
+        # self.pvar.logger = self.init_logger()
+
+        # Print this package's version number
+        print(f"Digilent WaveForms DASYLab Module version {__version__}")
+
+        # Initialize the Digilent WaveForms Manager
+        self.pvar.wf_manager = Manager()
+
+        # Print WaveForms python module and WaveForms SDK version information
+        print(f"Digilent WaveForms Python Module version {self.pvar.wf_manager.module_version}")
+        print(f"Digilent WaveForms SDK version {self.pvar.wf_manager.get_waveforms_version()}")
 
     def Create(self):
         # (oo)
@@ -74,44 +82,59 @@ class pscript(lys.mclass):
         pass
 
     def DlgInit(self, dlg):
-        # (oo)
-        # Initialization of settings dialog
-        # Click on the help button to get more information.
+        """
+        Handle module dialog box initialization
+        """
 
         # Set dialog title
-        dlg.title = "Script (Input Data)"
-        # Determine the number of channels, current channel and
-        # maximum number of channels
-        # (Covers moduls which have only outputs and at least one of them.
-        # You need to adjust this section if you have chosen another relation
-        # setting. You can find more information how to do this in the help)
-        self.DlgNumChannels = self.NumOutChannel
-        self.DlgMaxChannels = Ly.MAX_CHANNELS
+        dlg.title = "Digilent - Analog Input Record"
+
         # Setup dialog parameters
         dm = lys.DialogManager(self, dlg)
         dm.SelectModulePage()
-        # dm.AppendFloat(
-        #     "Param a", self.info.m_a, "Example: variable m_a in module scope"
-        # )
-        # dm.SelectChannelPage()
-        # dm.AppendFloat(
-        #     "Param b", self.info.c_b, "Example: variable c_b in channel scope"
-        # )
-        # dm.AppendFloat(
-        #     "Param c", self.info.c_c, "Example: variable c_c in channel scope"
-        # )
+
+        # Refresh device list
+        self.refresh_device_info()
+        self.pvar.devices_selection_options = []
+        for device_info in self.pvar.devices_info:
+            self.pvar.devices_selection_options.append(f"{device_info.name} ({device_info.serial_number})")
+
+        # Load saved device or default to first available device
+        if self.info.selected_device:
+            self.pvar.selected_device = (
+                self.info.selected_device if self.info.selected_device else self.pvar.devices_selection_options[0]
+            )
+
+        # Device
+        dlg.AppendEnum(
+            SettingName.SelectedDevice.value,
+            "\n".join(self.pvar.devices_selection_options),
+            self.pvar.selected_device,
+            "Choose device.",
+        )
+
+        # TODO - Handle case where selected device no longer exists
+
+        # # If no device has been selected default to first device in list
+        # if self.pvar.selected_device == "":
+        #     self.pvar.selected_device = self.pvar.devices_selection_options[0]
+
+        # Sample rate
+        dm.AppendInt(SettingName.SampleRate.value, self.info.sample_rate, "Samples per second")
 
     def DlgOk(self, dlg):
-        # (oo)
-        # Get values of dialog parameters
-        # Click on the help button to get more information.
+        """
+        Handle module dialog OK clicked
+          - Save module settings values
+        """
         dom = lys.DialogOkManager(dlg)
         dom.SelectModulePage()
-        # self.info.m_a = dom.GetValue("Param a")
-        dom.SelectChannelPage()
-        # self.info.c_b = dom.GetValue("Param b")
-        # self.info.c_c = dom.GetValue("Param c")
 
+        # Save module settings
+        self.info.selected_device = dom.GetValue(SettingName.SelectedDevice.value)
+        self.info.sample_rate = dom.GetValue(SettingName.SampleRate.value)
+
+        dom.SelectChannelPage()
         # Configure Inputs and Outputs
         # (Covers moduls which have only outputs and at least one of them.
         # You need to adjust this section if you have chosen another relation
@@ -124,6 +147,14 @@ class pscript(lys.mclass):
         # Click on the help button to get more information.
         pass
 
+    def DlgEvent(self, dlg, label, value):
+        if label == SettingName.SelectedDevice.value:
+            self.selected_device_change_handler()
+
+        if label == SettingName.SampleRate.value:
+            Logger.debug(f"{SettingName.SampleRate} value changed")
+            self.coerce_sample_rate(dlg)
+
     def Save(self):
         # (oo)
         # Prepare data before worksheet will be saved (if needed)
@@ -134,6 +165,8 @@ class pscript(lys.mclass):
         # (oo)
         # Prepare data after worksheet has been loaded (if needed)
         # Click on the help button to get more information.
+        print("load()")
+        print(self.info)
         pass
 
     def Start(self):
@@ -143,18 +176,6 @@ class pscript(lys.mclass):
 
         print(sys.path)
         try:
-            # Print this package's version number
-            print(f"Digilent WaveForms DASYLab Module version {__version__}")
-
-            # Initialize the Digilent WaveForms Manager
-            self.pvar.wf_manager = Manager()
-
-            # Print WaveForms python module and WaveForms SDK version information
-            print(f"Digilent WaveForms Python Module version {self.pvar.wf_manager.module_version}")
-            print(f"Digilent WaveForms SDK version {self.pvar.wf_manager.get_waveforms_version()}")
-
-            # Open first WaveForms device
-            self.pvar.wf_device = self.pvar.wf_manager.open_first_device()
 
             # Print device information
             print(self.pvar.wf_device.get_device_info_str())
@@ -262,3 +283,50 @@ class pscript(lys.mclass):
             print(e)
 
         return True
+
+    def selected_device_change_handler(self) -> None:
+        # Close any existing device handles and refresh the device list
+        self.pvar.wf_manager.close_all_devices()
+        self.refresh_device_info()
+
+        # Find the selected device index and open a new device handle
+        device_index = self.get_device_index_by_selection_name(self.pvar.selected_device)
+        self.pvar.wf_device = self.pvar.wf_manager.open_device(device_index)
+
+        # Update device parameters for user selection validation
+        min, max = self.pvar.wf_device.AnalogInput.get_sample_rate_min_max()
+        self.pvar.sample_rate_min = min
+        self.pvar.sample_rate_max = max
+
+        # Validate user selections
+        # self.coerce_sample_rate(dialog)
+
+    def coerce_sample_rate(self, dialog) -> None:
+        Logger.debug("coerce_sample_rate()")
+        dialog_manager = lys.DialogManager(self, dialog)
+        dialog_manager.SelectModulePage()
+        selected_sample_rate = dialog_manager.GetProperty(SettingName.SampleRate.value)
+
+        if selected_sample_rate < self.pvar.sample_rate_min:
+            dialog_manager.SetProperty(SettingName.SampleRate.value, self.pvar.sample_rate_min)
+            print(
+                f"Analog input sample rate increased from {selected_sample_rate} to min rate of {self.pvar.sample_rate_min} S/s"
+            )
+
+        if selected_sample_rate > self.pvar.sample_rate_max:
+            dialog_manager.SetProperty(SettingName.SampleRate.value, self.pvar.sample_rate_max)
+            print(
+                f"Analog input sample rate reduced from {selected_sample_rate} to max rate of {self.pvar.sample_rate_max} S/s"
+            )
+
+    def refresh_device_info(self) -> None:
+        self.pvar.devices_info = self.pvar.wf_manager.get_devices_info()
+
+    def get_device_index_by_selection_name(self, selection_name: str) -> int:
+        for i in range(len(self.pvar.devices_info)):
+            if self.pvar.devices_info[i].serial_number in selection_name:
+                return i
+        return -1
+
+    # def open_wf_device(self) -> Device:
+    #     return self.pvar.wf_manager.open_device()

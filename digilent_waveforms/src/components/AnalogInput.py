@@ -183,6 +183,13 @@ class AnalogIn:
 
         return (sample_data, lost_count, corrupt_count)
 
+    def get_sample_rate_min_max(self) -> tuple[float, float]:
+        min = c_double()
+        max = c_double()
+        self.dwf.FDwfAnalogInFrequencyInfo(self.device_handle, byref(min), byref(max))
+
+        return (min.value, max.value)
+
     # ---------- Utilities ----------
     def _check_channels(self, channels: list[int], values: list, function_name: str, value_name: str) -> None:
         # Ensure the number of channels matches the number of values
