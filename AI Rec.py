@@ -21,49 +21,35 @@ if DEBUG:
 
     debugpy.listen(5678, in_process_debug_adapter=True)
 
-module_name = "AI Rec"
-
 
 class SettingName(Enum):
     SelectedDevice = "Device"
     SampleRate = "Sample rate"
-    Range = "Input range"
 
 
 class info(object):
-    """
-    Object to store peristent data (i.e. saved as part of the DASYLab worksheet file)
-    """
-
     selected_device: str = ""
     sample_rate: float = 1000
-    selected_range: str = ""
 
     def __init__(self):
-        pass
+        print("info()")
 
 
 class pvar(object):
-    """
-    Object to store temporary variables (not persisted to DASYLab worksheet file)
-    """
-
     def __init__(self):
-        Logger.debug("pvar.__init__()")
+        """
+        Object to store temporary variables (not persisted to DASYLab worksheet file)
+        """
         self.m_outputs_done = 0
 
         self.wf_manager: Manager
         self.devices_info: list[DeviceInfo] = []
         self.devices_selection_options: list[str] = []
-        self.range_options: list[str] = []
+        self.selected_device: str = ""
 
         self.wf_device: Device
         self.sample_rate_min: float  # In S/s
         self.sample_rate_max: float  # In S/s
-        self.range_min: float
-        self.range_max: float
-        self.range_steps: float
-
         self.ai_data_buffer: list[float]
         # self.logger: logging.Logger
 
@@ -74,7 +60,6 @@ class pvar(object):
 
 class pscript(lys.mclass):
     def __init__(self, magic):
-        Logger.debug("pscript.__init__()")
         self.info = info()
         self.pvar = pvar()
 
@@ -93,7 +78,6 @@ class pscript(lys.mclass):
         Called when the module is added to the worksheet.
         Specify the number of inputs and outputs and the channel assignment.
         """
-        Logger.debug("Create()")
         return True
 
     def Delete(self):
@@ -108,6 +92,8 @@ class pscript(lys.mclass):
         Called when the module dialog is loaded
         Handle module dialog box initialization
         """
+
+        # self.wait_for_debug_client()
         Logger.debug("DlgInit()")
 
         # Set dialog title
@@ -117,28 +103,40 @@ class pscript(lys.mclass):
         dm = lys.DialogManager(self, dlg)
         dm.SelectModulePage()
 
-        # Refresh device options list each time dialog is opened
-        self.refresh_device_options()
-        self.update_input_validation()
+        # Refresh device list
+        self.refresh_device_info()
+        self.pvar.devices_selection_options = []
+        for device_info in self.pvar.devices_info:
+            self.pvar.devices_selection_options.append(f"{device_info.name} ({device_info.serial_number})")
+
+        Logger.debug(f"1. {self.info.selected_device}")
 
         # Device
         dlg.AppendEnum(
             SettingName.SelectedDevice.value,
             "\n".join(self.pvar.devices_selection_options),
-            self.info.selected_device,
+            self.pvar.selected_device,
             "Choose Digilent WaveForms device.",
         )
 
+        Logger.debug(f"2. {self.info.selected_device}")
+
+        # Load saved device or default to first available device
+        if self.info.selected_device:
+            self.pvar.selected_device = (
+                self.info.selected_device if self.info.selected_device else self.pvar.devices_selection_options[0]
+            )
+
+        Logger.debug(f"3. {self.info.selected_device}")
+
+        # TODO - Handle case where selected device no longer exists
+
+        # # If no device has been selected default to first device in list
+        # if self.pvar.selected_device == "":
+        #     self.pvar.selected_device = self.pvar.devices_selection_options[0]
+
         # Sample rate
         dm.AppendFloat(SettingName.SampleRate.value, self.info.sample_rate, "Samples per second")
-
-        # Range
-        dlg.AppendEnum(
-            SettingName.Range.value,
-            "\n".join(self.pvar.range_options),
-            self.info.selected_range,
-            "Analog input range in volts.",
-        )
 
     def DlgOk(self, dlg):
         """
@@ -151,7 +149,6 @@ class pscript(lys.mclass):
         # Save module settings
         self.info.selected_device = dom.GetValue(SettingName.SelectedDevice.value)
         self.info.sample_rate = float(dom.GetValue(SettingName.SampleRate.value))
-        self.info.selected_range = dom.GetValue(SettingName.Range.value)
 
         dom.SelectChannelPage()
         # Configure Inputs and Outputs
@@ -167,16 +164,13 @@ class pscript(lys.mclass):
         pass
 
     def DlgEvent(self, dlg, label, value):
-        Logger.debug(f"DlgEvent({label}, {value})")
+        self.wait_for_debug_client()
 
         if label == SettingName.SelectedDevice.value:
             self.selected_device_change_handler(dlg)
 
         if label == SettingName.SampleRate.value:
             self.coerce_sample_rate(dlg)
-
-        if label == SettingName.Range.value:
-            self.coerce_range(dlg)
 
     def Save(self):
         # (oo)
@@ -185,30 +179,26 @@ class pscript(lys.mclass):
         pass
 
     def Load(self):
-        """
-        Called once when worksheet is loaded.  Use to validate / init saved variables
-        """
+        # (oo)
+        # Prepare data after worksheet has been loaded (if needed)
+        # Click on the help button to get more information.
         print("load()")
-        self.validate_selected_device()
+        print(self.info)
+        pass
 
     def Start(self):
         """
         One time setup on start of measurement
         """
-        Logger.debug("Start()")
+
+        print(sys.path)
         try:
-            if not self.info.selected_device:
-                print(f"Module {module_name} - No device selected, aborting.")
-                return False  # Return false to abort worksheet execution
 
-            self.pvar.wf_device = self.open_selected_device()
-
-            if not self.pvar.wf_device:
-                print(f"Module {module_name} - The selected device ({self.info.selected_device}) is not available")
-                return False  # Return false to abort worksheet execution
+            # Print device information
+            print(self.pvar.wf_device.get_device_info_str())
 
             # Configure analog inputs and enable channel 0
-            self.pvar.wf_device.AnalogInput.record([0], sample_rate=self.info.sample_rate, range=10)
+            self.pvar.wf_device.AnalogInput.record([0], sample_rate=1000, range=10)
 
             self.pvar.m_outputs_done = 0
             self.pvar.ai_data_buffer = []
@@ -216,9 +206,7 @@ class pscript(lys.mclass):
         except DwfException as e:
             print(e.message)
             print(e.error)
-            return False  # Return false to abort worksheet execution
-
-        return True
+            Ly.StopExperiment()
 
     def Stop(self):
         # One time clean up at end of measurement
@@ -227,6 +215,15 @@ class pscript(lys.mclass):
         except Exception as e:
             print(e)
             Ly.StopExperiment()
+
+        # try:
+
+        # except Exception as e:
+        #    print(e)
+
+        # for i in range(0, 10):
+        #     print(f"{i}...")
+        #     sleep(1)
 
     def SetupFifo(self, channel):
         # (oo)
@@ -255,18 +252,16 @@ class pscript(lys.mclass):
         return self.pvar.math.sin(start_time + sample_index * delta_t)
 
     def ProcessData(self):
-        """
-        Generate and output data blocks
-        """
+        # (oo)
         # Process data blocks
         # Click on the help button to get more information.
 
         # Process the channels
-        samples_per_block = Ly.GetTimeBaseBlockSize(2)
-        deltaT = Ly.GetTimeBaseSampleDistance(2)
-        block_length_sec = samples_per_block * deltaT
+        bsize = Ly.GetTimeBaseBlockSize(2)
+        sdist = Ly.GetTimeBaseSampleDistance(2)
+        btime = bsize * sdist
         this_time = Ly.GetTimeBaseTime(2)
-        next_time = self.pvar.m_outputs_done * block_length_sec
+        next_time = self.pvar.m_outputs_done * btime
 
         # print(f"bsize = {bsize}    sdist = {sdist}   btime = {btime}")
         # print(f"self.pvar.m_outputs_done = {self.pvar.m_outputs_done}")
@@ -276,41 +271,64 @@ class pscript(lys.mclass):
         try:
             ai_read_data, lost_count, corrupt_count = self.pvar.wf_device.AnalogInput.read_available_samples([0])
             self.pvar.ai_data_buffer += ai_read_data[0]
+            # print(f"Read {len(ai_sample_data[0])} samples.  lost_count={lost_count}  corrupt_count={corrupt_count}")
+            # print(f"Read {len(ai_read_data[0])} samples.  AI buffer contains {len(self.pvar.ai_data_buffer )} samples")
+            # print(f"{len(self.pvar.ai_data_buffer )}")
 
-            if len(self.pvar.ai_data_buffer) >= samples_per_block:
+            if len(self.pvar.ai_data_buffer) >= bsize:
                 # Full block of data ready, output it
+                # print("Outputting buffer...")
 
                 # Build output buffer
-                # buffer_num_samples = len(ai_read_data)
-                # buffer_size_seconds = buffer_num_samples * deltaT
-                # buffer_start_time = this_time - buffer_size_seconds
+                buffer_num_samples = len(ai_read_data)
+                buffer_size_seconds = buffer_num_samples * sdist
+                buffer_start_time = this_time - buffer_size_seconds
 
                 OutBuff = self.GetOutputBlock(0)
-                for i in range(samples_per_block):
+                for i in range(bsize):
                     OutBuff[i] = self.pvar.ai_data_buffer[i]
                 OutBuff.StartTime = next_time
-                OutBuff.SampleDistance = deltaT
-                OutBuff.BlockSize = samples_per_block
+                OutBuff.SampleDistance = sdist
+                OutBuff.BlockSize = bsize
                 OutBuff.Release()
 
                 # Increment block output count and removed output data from sample buffer
                 self.pvar.m_outputs_done += 1
-                self.pvar.ai_data_buffer = self.pvar.ai_data_buffer[samples_per_block:]
+                self.pvar.ai_data_buffer = self.pvar.ai_data_buffer[bsize:]
 
+            #     for channel in range(self.NumOutChannel):
+            #         OutBuff = self.GetOutputBlock(channel)
+            #         for i in range(bsize):
+            #             OutBuff[i] = self.ProcessValue((next_time, i, sdist), channel)
+            #         OutBuff.StartTime = next_time
+            #         OutBuff.SampleDistance = sdist
+            #         OutBuff.BlockSize = bsize
+            #         OutBuff.Release()
+            #     self.pvar.m_outputs_done += 1
         except Exception as e:
             print(e)
 
         return True
 
     def selected_device_change_handler(self, dlg) -> None:
-        self.update_input_validation()
+        # Close any existing device handles and refresh the device list
+        self.pvar.wf_manager.close_all_devices()
+        self.refresh_device_info()
+
+        # Find the selected device index and open a new device handle
+        device_index = self.get_device_index_by_selection_name(self.pvar.selected_device)
+        self.pvar.wf_device = self.pvar.wf_manager.open_device(device_index)
+
+        # Update device parameters for user selection validation
+        min, max = self.pvar.wf_device.AnalogInput.get_sample_rate_min_max()
+        self.pvar.sample_rate_min = min
+        self.pvar.sample_rate_max = max
 
         # Validate user selections
         self.coerce_sample_rate(dlg)
-        self.coerce_range(dlg)
 
     def coerce_sample_rate(self, dlg) -> None:
-        Logger.debug(f"Supported sample rate ({self.pvar.sample_rate_min})-({self.pvar.sample_rate_max}) S/s")
+        Logger.debug(f"Range ({self.pvar.sample_rate_min})-({self.pvar.sample_rate_max})")
         selected_sample_rate = dlg.GetProperty(SettingName.SampleRate.value)
         if selected_sample_rate < self.pvar.sample_rate_min:
             dlg.SetProperty(SettingName.SampleRate.value, self.pvar.sample_rate_min)
@@ -323,10 +341,6 @@ class pscript(lys.mclass):
             print(
                 f"Analog input sample rate reduced from {selected_sample_rate} to max rate of {self.pvar.sample_rate_max} S/s"
             )
-
-    def coerce_range(self, dlg) -> None:
-        selected_range = dlg.GetProperty(SettingName.Range.value)
-        dlg.SetProperty(SettingName.Range.value, selected_range)
 
     def refresh_device_info(self) -> None:
         self.pvar.devices_info = self.pvar.wf_manager.get_devices_info()
@@ -344,54 +358,3 @@ class pscript(lys.mclass):
         if DEBUG:
             print("Waiting for debugger to connect")
             debugpy.wait_for_client()
-
-    def refresh_device_options(self) -> None:
-        self.refresh_device_info()
-        self.pvar.devices_selection_options = []
-        for device_info in self.pvar.devices_info:
-            self.pvar.devices_selection_options.append(f"{device_info.name} ({device_info.serial_number})")
-
-    def validate_selected_device(self) -> None:
-        # Refresh Digilent device list
-        self.refresh_device_options()
-
-        # Warn user if no device has been selected
-        print(f"self.info.selected_device={self.info.selected_device}")
-        if not self.info.selected_device:
-            Logger.warn(f"Module {module_name} - No Digilent WaveForms device selected.")  # TODO - Print help link
-
-        # Use device saved in the worksheet.
-        if self.info.selected_device in self.pvar.devices_selection_options:
-            print(f"Module {module_name} - Using {self.info.selected_device}")
-
-    def open_selected_device(self) -> Device:
-        # Close any existing device handles and refresh the device list
-        self.pvar.wf_manager.close_all_devices()
-        self.refresh_device_info()
-
-        # Find the selected device index and open a new device handle
-        device_index = self.get_device_index_by_selection_name(self.info.selected_device)
-        return self.pvar.wf_manager.open_device(device_index)
-
-    def close_selected_device(self) -> None:
-        self.pvar.wf_manager.close_device(self.pvar.wf_device)
-
-    def update_input_validation(self) -> None:
-        Logger.debug("update_input_options()")
-        device = self.open_selected_device()
-
-        # Update device parameters for user selection validation
-        rate_min, rate_max = device.AnalogInput.get_sample_rate_min_max()
-        self.pvar.sample_rate_min = rate_min
-        self.pvar.sample_rate_max = rate_max
-
-        range_min, range_max, range_steps = device.AnalogInput.get_range_min_max_num_steps()
-        self.pvar.range_min = range_min
-        self.pvar.range_max = range_max
-        self.pvar.range_steps = range_steps
-        range_float_list = device.AnalogInput.get_range_steps()
-        self.pvar.range_options = list(map(str, range_float_list))
-
-        Logger.debug(f"self.pvar.range_options = {self.pvar.range_options}")
-
-        self.pvar.wf_manager.close_device(device)

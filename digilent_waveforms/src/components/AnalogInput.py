@@ -60,6 +60,32 @@ class AnalogIn:
     def disable_all_channels(self) -> None:
         self.dwf.disable_channel(-1)
 
+    # ---------- Specs ----------
+    def get_sample_rate_min_max(self) -> tuple[float, float]:
+        min = c_double()
+        max = c_double()
+        self.dwf.FDwfAnalogInFrequencyInfo(self.device_handle, byref(min), byref(max))
+        return (min.value, max.value)
+
+    def get_range_min_max_num_steps(self) -> tuple[float, float, float]:
+        min = c_double()
+        max = c_double()
+        steps = c_double()
+        self.dwf.FDwfAnalogInChannelRangeInfo(self.device_handle, byref(min), byref(max), byref(steps))
+        return (min.value, max.value, steps.value)
+
+    def get_range_steps(self) -> list[float]:
+        # Create
+        steps = (c_double * 32)(0)
+        num_steps = c_int()
+
+        self.dwf.FDwfAnalogInChannelRangeSteps(self.device_handle, steps, byref(num_steps))
+
+        ret_val: list[float] = []
+
+        ret_val: list[float] = steps[0 : num_steps.value]
+        return ret_val
+
     # ---------- Range ----------
     def set_input_ranges(self, channels: list[int], ranges: list[float]) -> None:
         try:
@@ -79,7 +105,7 @@ class AnalogIn:
     def set_record_length(self, length: float) -> None:
         self.dwf.FDwfAnalogInRecordLengthSet(self.device_handle, c_double(length))
 
-    def record(self, channels: list[int], sample_rate: int, num_samples: float = -1, range: int = 5):
+    def record(self, channels: list[int], sample_rate: float, num_samples: float = -1, range: int = 5):
         try:
             self.enable_channels(channels)
             self.set_input_ranges(channels, [range] * len(channels))
@@ -182,13 +208,6 @@ class AnalogIn:
             time.sleep(0.1)
 
         return (sample_data, lost_count, corrupt_count)
-
-    def get_sample_rate_min_max(self) -> tuple[float, float]:
-        min = c_double()
-        max = c_double()
-        self.dwf.FDwfAnalogInFrequencyInfo(self.device_handle, byref(min), byref(max))
-
-        return (min.value, max.value)
 
     # ---------- Utilities ----------
     def _check_channels(self, channels: list[int], values: list, function_name: str, value_name: str) -> None:

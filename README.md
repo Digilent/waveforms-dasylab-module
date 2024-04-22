@@ -50,3 +50,15 @@
 - DASYLab looks for python imports in `<DASYLAB_DIR>\python\Lib\site-packages\`.  In order to minimize name collisions it is best to place all python dependencies in a subdirectory and include the subdirectory when importing.
   - Ex. **_version.py** lives in `./digilent_waveforms_dasylab/` rather than at the project root and imported with `from digilent_waveforms_dasylab._version import __version__`
 - Needs verification - DASYLab appears to cache python dependencies at start time.  Therefor if you make changes to a python module that is symlinked into `<DASYLAB_DIR>\python\Lib\site-packages\` the changes won't take effect until DASYLab is restarted.
+
+### Debugging
+1. Set `DEBUG = True` in `digilent_waveforms_dasylab_module.py`.  this will start the debug listener.
+2. Open the DASYLab script module and load the python file.
+3. DASYLab creates a temp file that contains the script in `%AppData%\Local\Temp\dasylab\script\<SCRIPT_NAME>.py`.  This is the python file that DASYLab will execute, and therefore the file you need to open in VSCode for debugging.
+  - Note: Adding something like `pathMappings` in launch.json may make it so you can debug directly in the source directory, but a quick test didn't work.
+4. Set VSCode to use the DASYLab python interpreter
+   - Ctrl + Shift + P
+   - Python: Select interpreter
+   - Browse to <DASYLAB>\python\python.exe
+6. In VSCode run the **Attach to DASYLab** debug profile
+7. Set break points, etc and trigger callbacks in DASYLab

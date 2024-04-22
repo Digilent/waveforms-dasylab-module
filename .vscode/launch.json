@@ -5,6 +5,28 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Attach to DASYLab Script",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 5678
+      }
+      // Note working but may help remove the need to open the AppData\Local\Temp\dasylab\script version of the python file.
+      // "pathMappings": [
+      //   {
+      //     "localRoot": "${workspaceRoot}", // Maps C:\Users\user1\project1
+      //     "remoteRoot": "C:/Users/skristof/AppData/Local/Temp/dasylab/script" // To current working directory ~/project1
+      //   }
+      // ]
+
+      // Not currently used
+      //"processId": "${command:pickProcess}",
+      //"console": "integratedTerminal",
+      //"stopOnEntry": true,
+      //"justMyCode": false
+    },
+    {
       "name": "Ex: AI - Record",
       "type": "debugpy",
       "request": "launch",

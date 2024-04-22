@@ -52,6 +52,9 @@ class Manager:
     def open_first_device(self) -> Device:
         return self.open_device(-1)
 
+    def close_device(self, device: Device) -> None:
+        self.dwf.FDwfDeviceClose(device.device_handle)
+
     def close_all_devices(self) -> None:
         self.dwf.FDwfDeviceCloseAll()
 
