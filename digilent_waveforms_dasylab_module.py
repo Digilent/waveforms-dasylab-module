@@ -1,10 +1,9 @@
 import Ly  # type: ignore
 from digilent_waveforms import DwfException
 import lys  # type: ignore
-import sys
 from enum import Enum
 import logging
-from time import sleep
+
 
 from digilent_waveforms_dasylab._version import __version__
 from ctypes import *  # type: ignore
@@ -390,7 +389,13 @@ class pscript(lys.mclass):
         self.pvar.range_max = range_max
         self.pvar.range_steps = range_steps
         range_float_list = device.AnalogInput.get_range_steps()
-        self.pvar.range_options = list(map(str, range_float_list))
+
+        range_options: list[str] = []
+        for p2p_range in range_float_list:
+            full_range = ("%f" % (p2p_range / 2)).rstrip("0").rstrip(".")
+            Logger.debug(full_range)
+            range_options.append(f"±{full_range}")
+        self.pvar.range_options = range_options
 
         Logger.debug(f"self.pvar.range_options = {self.pvar.range_options}")
 
