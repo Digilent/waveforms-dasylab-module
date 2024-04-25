@@ -105,7 +105,7 @@ class AnalogIn:
     def set_record_length(self, length: float) -> None:
         self.dwf.FDwfAnalogInRecordLengthSet(self.device_handle, c_double(length))
 
-    def record(self, channels: list[int], sample_rate: float, num_samples: float = -1, range: int = 5):
+    def record(self, channels: list[int], sample_rate: float, num_samples: float = -1, range: float = 5):
         try:
             self.enable_channels(channels)
             self.set_input_ranges(channels, [range] * len(channels))
