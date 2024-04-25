@@ -141,6 +141,7 @@ class AnalogIn:
 
     def start(self, reset_trigger: bool = True) -> None:
         self.dwf.FDwfAnalogInConfigure(self.device_handle, c_int(reset_trigger), c_int(1))
+        self.dwf.FDwfAnalogInConfigure(self.device_handle, c_int(reset_trigger), c_int(1))
         self._reset_soft_counters()
 
     # ---------- Read ----------
