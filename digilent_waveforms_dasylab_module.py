@@ -113,7 +113,7 @@ class info(object):
 
     def __init__(self):
         self.selected_device_serial_number: str = ""
-        self.sample_rate: float = 1000
+        # NOTE: Remove Sample Rate self.sample_rate: float = 1000
 
         self.range_names: list[str] = []
         self.range_values: list[float] = []
@@ -138,8 +138,8 @@ class pvar(object):
 
         self.wf_device: Device
         self.num_channels: int
-        self.sample_rate_min: float  # In S/s
-        self.sample_rate_max: float  # In S/s
+        # NOTE: Remove Sample Rate self.sample_rate_min: float  # In S/s
+        # NOTE: Remove Sample Rate self.sample_rate_max: float  # In S/s
         self.range_min: float
         self.range_max: float
         self.range_steps: float
@@ -229,7 +229,7 @@ class pscript(lys.mclass):
         )
 
         # Sample rate
-        dm.AppendFloat(SettingName.SampleRate.value, self.info.sample_rate, "Samples per second")
+        # NOTE: Remove Sample Rate  dm.AppendFloat(SettingName.SampleRate.value, self.info.sample_rate, "Samples per second")
 
         # Range
         # Logger.debug(f"self.info.range_names = {self.info.range_names}")
@@ -255,7 +255,7 @@ class pscript(lys.mclass):
         Logger.debug(f"Saved selected device serial number ({self.info.selected_device_serial_number})")
 
         # Save selected sample rate
-        self.info.sample_rate = float(dom.GetValue(SettingName.SampleRate.value))
+        # NOTE: Remove Sample Rate self.info.sample_rate = float(dom.GetValue(SettingName.SampleRate.value))
 
         # Save selected range
         selected_range_name = dom.GetValue(SettingName.Range.value)
@@ -284,8 +284,8 @@ class pscript(lys.mclass):
         if label == SettingName.SelectedDevice.value:
             self.selected_device_change_handler(dlg)
 
-        if label == SettingName.SampleRate.value:
-            self.coerce_sample_rate(dlg)
+        # NOTE: Remove Sample Rate if label == SettingName.SampleRate.value:
+        # NOTE: Remove Sample Rate     self.coerce_sample_rate(dlg)
 
         if label == SettingName.Range.value:
             self.update_range_options(dlg)
@@ -333,9 +333,9 @@ class pscript(lys.mclass):
             Logger.debug(f"Range index [{range_index}] = {range_value}")
             Logger.debug(f"Enabled channels {enabled_channels}")
 
-            self.pvar.wf_device.AnalogInput.record(
-                enabled_channels, sample_rate=self.info.sample_rate, range=range_value
-            )
+            sample_rate = 1 / Ly.GetTimeBaseSampleDistance(2)
+
+            self.pvar.wf_device.AnalogInput.record(enabled_channels, sample_rate, range=range_value)
 
             self.pvar.m_outputs_done = [0] * 16  # Initialize for up to 16 outputs
             self.pvar.ai_data_buffer = self.pvar.wf_device.AnalogInput._get_data_container(enabled_channels)
@@ -434,23 +434,24 @@ class pscript(lys.mclass):
         self.refresh_device_parameter_options()
 
         # Validate user selections
-        self.coerce_sample_rate(dlg)
+        # NOTE: Remove Sample Rate self.coerce_sample_rate(dlg)
         self.update_range_options(dlg)
 
-    def coerce_sample_rate(self, dlg) -> None:
-        Logger.debug(f"Supported sample rate ({self.pvar.sample_rate_min})-({self.pvar.sample_rate_max}) S/s")
-        selected_sample_rate = dlg.GetProperty(SettingName.SampleRate.value)
-        if selected_sample_rate < self.pvar.sample_rate_min:
-            dlg.SetProperty(SettingName.SampleRate.value, self.pvar.sample_rate_min)
-            print(
-                f"Analog input sample rate increased from {selected_sample_rate} to min rate of {self.pvar.sample_rate_min} S/s"
-            )
+    # NOTE: Remove Sample Rate
+    # def coerce_sample_rate(self, dlg) -> None:
+    #     Logger.debug(f"Supported sample rate ({self.pvar.sample_rate_min})-({self.pvar.sample_rate_max}) S/s")
+    #     selected_sample_rate = dlg.GetProperty(SettingName.SampleRate.value)
+    #     if selected_sample_rate < self.pvar.sample_rate_min:
+    #         dlg.SetProperty(SettingName.SampleRate.value, self.pvar.sample_rate_min)
+    #         print(
+    #             f"Analog input sample rate increased from {selected_sample_rate} to min rate of {self.pvar.sample_rate_min} S/s"
+    #         )
 
-        if selected_sample_rate > self.pvar.sample_rate_max:
-            dlg.SetProperty(SettingName.SampleRate.value, self.pvar.sample_rate_max)
-            print(
-                f"Analog input sample rate reduced from {selected_sample_rate} to max rate of {self.pvar.sample_rate_max} S/s"
-            )
+    #     if selected_sample_rate > self.pvar.sample_rate_max:
+    #         dlg.SetProperty(SettingName.SampleRate.value, self.pvar.sample_rate_max)
+    #         print(
+    #             f"Analog input sample rate reduced from {selected_sample_rate} to max rate of {self.pvar.sample_rate_max} S/s"
+    #         )
 
     def update_range_options(self, dlg) -> None:
         selected_range = dlg.GetProperty(SettingName.Range.value)
@@ -507,9 +508,9 @@ class pscript(lys.mclass):
             self.pvar.num_channels = device.AnalogInput.channel_count
             self.DlgMaxChannels = self.pvar.num_channels
 
-            rate_min, rate_max = device.AnalogInput.get_sample_rate_min_max()
-            self.pvar.sample_rate_min = rate_min
-            self.pvar.sample_rate_max = rate_max
+            # NOTE: Remove Sample Rate rate_min, rate_max = device.AnalogInput.get_sample_rate_min_max()
+            # NOTE: Remove Sample Rate self.pvar.sample_rate_min = rate_min
+            # NOTE: Remove Sample Rate self.pvar.sample_rate_max = rate_max
 
             self.info.range_values = device.AnalogInput.get_range_steps()
 

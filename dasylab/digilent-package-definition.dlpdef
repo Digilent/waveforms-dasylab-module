@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <pi>
  <PackageMeta Locale="en" Status="Alpha">
-  <PackageId Value="digilent_package_name"/>
-  <Version VMajor="1" VMinor="0" VRelease="0" VBuild="25"/>
+  <PackageId Value="digilent"/>
+  <Version VMajor="1" VMinor="0" VRelease="0" VBuild="29"/>
   <DisplayName Value="Digilent"/>
   <Vendor Value="Digilent"/>
   <Group Value="Digilent"/>
