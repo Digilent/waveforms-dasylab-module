@@ -4,7 +4,6 @@ import lys  # type: ignore
 from enum import Enum
 import logging
 
-
 from digilent_waveforms_dasylab._version import __version__
 from ctypes import *  # type: ignore
 from digilent_waveforms import Manager, Device, DeviceInfo
@@ -112,15 +111,13 @@ class info(object):
     Object to store peristent data (i.e. saved as part of the DASYLab worksheet file)
     """
 
-    selected_device_serial_number: str = ""
-    sample_rate: float = 1000
-
-    range_names: list[str] = []
-    range_values: list[float] = []
-    selected_range_index: int = 0
-
     def __init__(self):
-        pass
+        self.selected_device_serial_number: str = ""
+        self.sample_rate: float = 1000
+
+        self.range_names: list[str] = []
+        self.range_values: list[float] = []
+        self.selected_range_index: int = 0
 
 
 class pvar(object):
@@ -135,9 +132,9 @@ class pvar(object):
         self.wf_manager: Manager
 
         self.device_manager: DeviceManager
+        self.selected_device_serial_number: str = ""
 
         self.devices_info: list[DeviceInfo] = []
-        self.devices_selection_options: list[str] = []
 
         self.wf_device: Device
         self.num_channels: int
@@ -201,20 +198,33 @@ class pscript(lys.mclass):
         dm = lys.DialogManager(self, dlg)
         dm.SelectModulePage()
 
-        # If no device has been selected, default to first device
+        # TODO: Determine best action.  First device may be busy, but that may be better than none selected
+        # If no device has been selected, default to first device  ------Probably not a good idea to do this since the device may be in use.  either handle that case or just make the user select the device manually
         if not self.info.selected_device_serial_number:
             self.pvar.device_manager.enumerate_devices()
-            self.info.selected_device_serial_number = self.pvar.device_manager.serial_numbers[0]
+            self.pvar.selected_device_serial_number = self.pvar.device_manager.serial_numbers[0]
             # TODO: handle case when no devices are present
 
         # If a device has been selected, update the device params
-        self.init_device_params()
+        selected_device_name = "---"
+        selected_device_range = "---"
+
+        # If a device has been selected, update the available parameter options
+        if self.pvar.selected_device_serial_number:
+            try:
+                self.refresh_device_parameter_options()
+                selected_device_name = self.pvar.device_manager.get_device_name_by_sn(
+                    self.pvar.selected_device_serial_number
+                )
+                selected_device_range = self.info.range_names[self.info.selected_range_index]
+            except Exception as e:
+                Logger.warn(e)
 
         # Device
         dlg.AppendEnum(
             SettingName.SelectedDevice.value,
             "\n".join(self.pvar.device_manager.get_all_device_names()),
-            self.pvar.device_manager.get_device_name_by_sn(self.info.selected_device_serial_number),
+            selected_device_name,
             "Choose Digilent WaveForms device.",
         )
 
@@ -222,10 +232,11 @@ class pscript(lys.mclass):
         dm.AppendFloat(SettingName.SampleRate.value, self.info.sample_rate, "Samples per second")
 
         # Range
+        # Logger.debug(f"self.info.range_names = {self.info.range_names}")
         dlg.AppendEnum(
             SettingName.Range.value,
             "\n".join(self.info.range_names),
-            self.info.range_names[self.info.selected_range_index],
+            selected_device_range,
             "Analog input range in volts.",
         )
 
@@ -238,8 +249,9 @@ class pscript(lys.mclass):
         dom.SelectModulePage()
 
         # Save selected device
-        selected_device_name = dom.GetValue(SettingName.SelectedDevice.value)
-        self.info.selected_device_serial_number = self.pvar.device_manager.get_device_sn_by_name(selected_device_name)
+        # selected_device_name = dom.GetValue(SettingName.SelectedDevice.value)
+        # self.info.selected_device_serial_number = self.pvar.device_manager.get_device_sn_by_name(selected_device_name)
+        self.info.selected_device_serial_number = self.pvar.selected_device_serial_number
         Logger.debug(f"Saved selected device serial number ({self.info.selected_device_serial_number})")
 
         # Save selected sample rate
@@ -247,9 +259,10 @@ class pscript(lys.mclass):
 
         # Save selected range
         selected_range_name = dom.GetValue(SettingName.Range.value)
-        selected_range_index = self.info.range_names.index(selected_range_name)
-        Logger.debug(f"Range [{selected_range_index}] selected = {selected_range_name}")
-        self.info.selected_range_index = selected_range_index
+        if selected_range_name:
+            selected_range_index = self.info.range_names.index(selected_range_name)
+            self.info.selected_range_index = selected_range_index
+            Logger.debug(f"Range [{selected_range_index}] selected = {selected_range_name}")
 
         dom.SelectChannelPage()
 
@@ -275,7 +288,7 @@ class pscript(lys.mclass):
             self.coerce_sample_rate(dlg)
 
         if label == SettingName.Range.value:
-            self.coerce_range(dlg)
+            self.update_range_options(dlg)
 
     def Save(self):
         # (oo)
@@ -288,8 +301,8 @@ class pscript(lys.mclass):
         Called once when worksheet is loaded.  Use to validate / init saved variables
         """
         print("load()")
-        self.validate_selected_device()
-        self.init_device_params()
+        self.load_saved_selected_device()
+        self.refresh_device_parameter_options()
 
     def Start(self):
         """
@@ -297,17 +310,17 @@ class pscript(lys.mclass):
         """
         Logger.debug("Start()")
         try:
-            if not self.info.selected_device_serial_number:
+            if not self.pvar.selected_device_serial_number:
                 Logger.warn(f"Module {module_name} - No device selected.  Aborting.")
                 return False  # Return false to abort worksheet execution
 
             self.pvar.wf_device = self.pvar.device_manager.open_device_by_serial_number(
-                self.info.selected_device_serial_number
+                self.pvar.selected_device_serial_number
             )
 
             if not self.pvar.wf_device:
                 Logger.warn(
-                    f"Module {module_name} - The selected device with serial number ({self.info.selected_device_serial_number}) is not available.  Aborting."
+                    f"Module {module_name} - The selected device with serial number ({self.pvar.selected_device_serial_number}) is not available.  Aborting."
                 )
                 return False  # Return false to abort worksheet execution
 
@@ -325,7 +338,7 @@ class pscript(lys.mclass):
             )
 
             self.pvar.m_outputs_done = [0] * 16  # Initialize for up to 16 outputs
-            self.pvar.ai_data_buffer = [[]] * 16  # Initialize for up to 16 channels
+            self.pvar.ai_data_buffer = self.pvar.wf_device.AnalogInput._get_data_container(enabled_channels)
 
         except DwfException as e:
             Logger.error(e)
@@ -381,6 +394,11 @@ class pscript(lys.mclass):
                 enabled_channels
             )
 
+            # Logger.debug(f"enabled_channels : {enabled_channels}")
+            # Logger.debug(f"ai_read_data : [{len(ai_read_data[0])}][{len(ai_read_data[1])}]")
+            # Logger.debug(f"self.pvar.ai_data_buffer : [{len(self.pvar.ai_data_buffer[0])}][{len(self.pvar.ai_data_buffer[1])}]")
+            # self.write_csv(self.pvar.ai_data_buffer)
+
             for channel_index in enabled_channels:
                 next_time = self.pvar.m_outputs_done[channel_index] * block_length_sec
                 self.pvar.ai_data_buffer[channel_index] += ai_read_data[channel_index]
@@ -401,7 +419,7 @@ class pscript(lys.mclass):
                         samples_per_block:
                     ]
 
-                    Logger.debug(f"Blocks output: {self.pvar.m_outputs_done}")
+                    # Logger.debug(f"Blocks output: {self.pvar.m_outputs_done}")
 
         except Exception as e:
             Logger.error(e)
@@ -409,11 +427,15 @@ class pscript(lys.mclass):
         return True
 
     def selected_device_change_handler(self, dlg) -> None:
-        self.init_device_params()
+        selected_device_name = dlg.GetProperty(SettingName.SelectedDevice.value)
+        selected_device_sn = self.pvar.device_manager.get_device_sn_by_name(selected_device_name)
+        self.pvar.selected_device_serial_number = selected_device_sn
+
+        self.refresh_device_parameter_options()
 
         # Validate user selections
         self.coerce_sample_rate(dlg)
-        self.coerce_range(dlg)
+        self.update_range_options(dlg)
 
     def coerce_sample_rate(self, dlg) -> None:
         Logger.debug(f"Supported sample rate ({self.pvar.sample_rate_min})-({self.pvar.sample_rate_max}) S/s")
@@ -430,8 +452,12 @@ class pscript(lys.mclass):
                 f"Analog input sample rate reduced from {selected_sample_rate} to max rate of {self.pvar.sample_rate_max} S/s"
             )
 
-    def coerce_range(self, dlg) -> None:
+    def update_range_options(self, dlg) -> None:
         selected_range = dlg.GetProperty(SettingName.Range.value)
+
+        if not selected_range:
+            selected_range = self.info.range_names[0]
+
         dlg.SetProperty(SettingName.Range.value, selected_range)
 
     def get_device_index_by_selection_name(self, selection_name: str) -> int:
@@ -448,31 +474,34 @@ class pscript(lys.mclass):
             print("Waiting for debugger to connect")
             debugpy.wait_for_client()
 
-    def validate_selected_device(self) -> None:
+    def load_saved_selected_device(self) -> None:
+        # Load selected device serail number from info into pvar
+        self.pvar.selected_device_serial_number = self.info.selected_device_serial_number
+
         # Refresh Digilent device list
         self.pvar.device_manager.enumerate_devices()
 
         # Warn user if no device has been selected
-        if not self.info.selected_device_serial_number:
+        if not self.pvar.selected_device_serial_number:
             Logger.warn(f"Module {module_name} - No device selected.")  # TODO: Print help link
 
         # Warn user if selected device is not available
         try:
-            self.pvar.device_manager.get_device_name_by_sn(self.info.selected_device_serial_number)
+            self.pvar.device_manager.get_device_name_by_sn(self.pvar.selected_device_serial_number)
         except Exception as e:
             Logger.warn(
-                f"Module {module_name} - The selected device with serial number ({self.info.selected_device_serial_number}) is not available."
+                f"Module {module_name} - The selected device with serial number ({self.pvar.selected_device_serial_number}) is not available."
             )
 
-        Logger.debug(f"Using device with serial number ({self.info.selected_device_serial_number})")
+        Logger.debug(f"Using device with serial number ({self.pvar.selected_device_serial_number})")
 
     def close_selected_device(self) -> None:
         self.pvar.wf_manager.close_device(self.pvar.wf_device)
 
-    def init_device_params(self) -> None:
+    def refresh_device_parameter_options(self) -> None:
         try:
             Logger.debug("init_device_params()")
-            device = self.pvar.device_manager.open_device_by_serial_number(self.info.selected_device_serial_number)
+            device = self.pvar.device_manager.open_device_by_serial_number(self.pvar.selected_device_serial_number)
 
             # Update device parameters for user selection validation
             self.pvar.num_channels = device.AnalogInput.channel_count
@@ -496,6 +525,3 @@ class pscript(lys.mclass):
             self.pvar.wf_manager.close_device(device)
         except Exception as e:
             Logger.error(e)
-
-    # def set_output_channel_count(self) -> None:
-    #     self.SetConnectors(0, self.pvar.num_channels)
