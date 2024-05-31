@@ -25,43 +25,42 @@ class pscript(lys.mclass):
         self.pvar = pvar()
 
     def ProcessData(self):
-        self.foo()
-
-    def foo(self):
-        print("foo")
+        print("ProcessData()")
 
     def Create(self):
-        pass
+        print("Create()")
 
     def Delete(self):
-        pass
+        print("Delete()")
 
     def DlgInit(self, dlg):
-        pass
+        print("DlgInit()")
 
     def DlgOk(self, dlg):
-        pass
+        print("DlgOk()")
 
     def DlgCancel(self, dlg):
-        pass
+        print("DlgCancel()")
 
     def DlgEvent(self, dlg, label, value):
-        pass
+        print("DlgEvent()")
 
     def Save(self):
-        pass
+        print("Save()")
 
     def Load(self):
-        pass
+        print("Load()")
 
     def Start(self):
-        pass
+        print("Start()")
 
     def Stop(self):
-        pass
+        print("Stop()")
 
     def SetupFifo(self, channel):
+        print("SetupFifo()")
         return True
 
     def ProcessValue(self, v, c):
+        print("ProcessValue()")
         return True

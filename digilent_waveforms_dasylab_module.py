@@ -1,5 +1,6 @@
 import Ly  # type: ignore
 from digilent_waveforms import DwfException
+from typing import Union
 import lys  # type: ignore
 from enum import Enum
 import logging
@@ -83,10 +84,10 @@ class DeviceManager:
             return self.names.index(device_name)
         except Exception as e:
             # If a device with the specified name does not exist, raise exception
-            msg = f"A device with the specified name ({device_name}) is not available"
+            msg = f"A device with the specified name ({device_name}) is not available - {e}"
             raise Exception(msg)
 
-    def open_device_by_serial_number(self, serial_number: str) -> Device:
+    def open_device_by_serial_number(self, serial_number: str):
         try:
             # Close any existing device handles and re-enumerate device devices
             self.wf_manager.close_all_devices()
@@ -101,8 +102,10 @@ class DeviceManager:
                 raise Exception(msg)
 
             # Open the device and return it
-            return self.wf_manager.open_device(index)
+            device = self.wf_manager.open_device(index)
+            return device
         except Exception as e:
+            self.wf_manager.close_all_devices()
             raise e
 
 
@@ -270,7 +273,8 @@ class pscript(lys.mclass):
         # (Covers moduls which have only outputs and at least one of them.
         # You need to adjust this section if you have chosen another relation
         # setting. You can find more information how to do this in the help)
-        self.SetConnectors(0, self.NumOutChannel)
+        Logger.debug(f"self.DlgNumChannels : {self.DlgNumChannels }")
+        self.SetConnectors(0, self.DlgNumChannels)
 
     def DlgCancel(self, dlg):
         # (oo)
@@ -314,15 +318,15 @@ class pscript(lys.mclass):
                 Logger.warn(f"Module {module_name} - No device selected.  Aborting.")
                 return False  # Return false to abort worksheet execution
 
-            self.pvar.wf_device = self.pvar.device_manager.open_device_by_serial_number(
-                self.pvar.selected_device_serial_number
-            )
+            device = self.pvar.device_manager.open_device_by_serial_number(self.pvar.selected_device_serial_number)
 
-            if not self.pvar.wf_device:
+            if not device:
                 Logger.warn(
                     f"Module {module_name} - The selected device with serial number ({self.pvar.selected_device_serial_number}) is not available.  Aborting."
                 )
                 return False  # Return false to abort worksheet execution
+
+            self.pvar.wf_device = device
 
             # Configure and start analog input record
             range_index = self.info.selected_range_index
@@ -427,6 +431,8 @@ class pscript(lys.mclass):
         return True
 
     def selected_device_change_handler(self, dlg) -> None:
+        self.pvar.device_manager.enumerate_devices()
+
         selected_device_name = dlg.GetProperty(SettingName.SelectedDevice.value)
         selected_device_sn = self.pvar.device_manager.get_device_sn_by_name(selected_device_name)
         self.pvar.selected_device_serial_number = selected_device_sn
@@ -501,8 +507,13 @@ class pscript(lys.mclass):
 
     def refresh_device_parameter_options(self) -> None:
         try:
-            Logger.debug("init_device_params()")
+            Logger.debug("refresh_device_parameter_options()")
             device = self.pvar.device_manager.open_device_by_serial_number(self.pvar.selected_device_serial_number)
+
+            if not device:
+                error = self.pvar.wf_manager.get_error()
+                Logger.error(error)
+                raise Exception(f"Failed to open device - {error}")
 
             # Update device parameters for user selection validation
             self.pvar.num_channels = device.AnalogInput.channel_count
@@ -523,6 +534,8 @@ class pscript(lys.mclass):
             # Logger.debug(f"self.info.range_names = {self.info.range_names}")
             self.info.range_names = range_names
 
-            self.pvar.wf_manager.close_device(device)
         except Exception as e:
             Logger.error(e)
+
+        finally:
+            self.pvar.wf_manager.close_all_devices()
