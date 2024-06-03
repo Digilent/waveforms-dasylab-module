@@ -139,7 +139,7 @@ class pvar(object):
 
         self.devices_info: list[DeviceInfo] = []
 
-        self.wf_device: Device
+        self.wf_device: Device = None
         self.num_channels: int
         # NOTE: Remove Sample Rate self.sample_rate_min: float  # In S/s
         # NOTE: Remove Sample Rate self.sample_rate_max: float  # In S/s
