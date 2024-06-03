@@ -90,7 +90,7 @@ class DeviceManager:
     def open_device_by_serial_number(self, serial_number: str):
         try:
             # Close any existing device handles and re-enumerate device devices
-            self.wf_manager.close_all_devices()
+            self.wf_manager.close_all_devices()            
             self.enumerate_devices()
 
             # Find device index by serial number
@@ -105,7 +105,7 @@ class DeviceManager:
             device = self.wf_manager.open_device(index)
             return device
         except Exception as e:
-            self.wf_manager.close_all_devices()
+            self.wf_manager.close_all_devices()         
             raise e
 
 
@@ -201,27 +201,44 @@ class pscript(lys.mclass):
         dm = lys.DialogManager(self, dlg)
         dm.SelectModulePage()
 
-        # TODO: Determine best action.  First device may be busy, but that may be better than none selected
-        # If no device has been selected, default to first device  ------Probably not a good idea to do this since the device may be in use.  either handle that case or just make the user select the device manually
-        if not self.info.selected_device_serial_number:
-            self.pvar.device_manager.enumerate_devices()
-            self.pvar.selected_device_serial_number = self.pvar.device_manager.serial_numbers[0]
-            # TODO: handle case when no devices are present
-
-        # If a device has been selected, update the device params
+        # Variables for dialog props
         selected_device_name = "---"
         selected_device_range = "---"
 
-        # If a device has been selected, update the available parameter options
-        if self.pvar.selected_device_serial_number:
-            try:
-                self.refresh_device_parameter_options()
-                selected_device_name = self.pvar.device_manager.get_device_name_by_sn(
-                    self.pvar.selected_device_serial_number
-                )
-                selected_device_range = self.info.range_names[self.info.selected_range_index]
-            except Exception as e:
-                Logger.warn(e)
+        # If the worksheet is running, no need to enumerate devices, just display the active device params
+        if self.pvar.wf_device:
+            selected_device_name = self.pvar.device_manager.get_device_name_by_sn(
+                self.pvar.selected_device_serial_number
+            )
+            selected_device_range = self.info.range_names[self.info.selected_range_index]            
+
+        # No wf_device means no device handle is open.  Assume this means the worksheet is NOT running
+        else:
+            # TODO: Determine best action.  First device may be busy, but that may be better than none selected
+            # NOTE: If a device has been saved in the worksheet (ie in info) it has already been loaded into pvar in the load() function
+            # If no device has been selected, default to first device  
+               # NOTE: Probably not a good idea to do this since the device may be in use.  either handle that case or just make the user select the device manually
+            if not self.pvar.selected_device_serial_number:
+                Logger.debug("No device selected - defaulting to first device")
+                self.pvar.device_manager.enumerate_devices()
+                self.pvar.selected_device_serial_number = self.pvar.device_manager.serial_numbers[0]
+                
+
+            # Update device parameter options
+            if self.pvar.selected_device_serial_number:
+                try:
+                    Logger.debug(f"Using device ({self.pvar.selected_device_serial_number})")
+                    self.refresh_device_parameter_options()
+                    selected_device_name = self.pvar.device_manager.get_device_name_by_sn(
+                        self.pvar.selected_device_serial_number
+                    )
+                    selected_device_range = self.info.range_names[self.info.selected_range_index]
+                except Exception as e:
+                    Logger.warn(e)
+
+            else:
+                # TODO: handle case when no devices are present
+                pass
 
         # Device
         dlg.AppendEnum(
@@ -230,10 +247,7 @@ class pscript(lys.mclass):
             selected_device_name,
             "Choose Digilent WaveForms device.",
         )
-
-        # Sample rate
-        # NOTE: Remove Sample Rate  dm.AppendFloat(SettingName.SampleRate.value, self.info.sample_rate, "Samples per second")
-
+       
         # Range
         # Logger.debug(f"self.info.range_names = {self.info.range_names}")
         dlg.AppendEnum(
@@ -354,6 +368,7 @@ class pscript(lys.mclass):
         # One time clean up at end of measurement
         try:
             self.pvar.wf_manager.close_all_devices()
+            self.pvar.wf_device = None
         except Exception as e:
             print(e)
             Ly.StopExperiment()
@@ -539,3 +554,4 @@ class pscript(lys.mclass):
 
         finally:
             self.pvar.wf_manager.close_all_devices()
+            self.pvar.wf_device = None
