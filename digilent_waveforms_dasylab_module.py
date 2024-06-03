@@ -206,7 +206,10 @@ class pscript(lys.mclass):
         selected_device_range = "---"
 
         # If the worksheet is running, no need to enumerate devices, just display the active device params
+        worksheet_is_running = False
         if self.pvar.wf_device:
+            Logger.debug("Worksheet is running - will not enumerate devices")
+            worksheet_is_running = True
             selected_device_name = self.pvar.device_manager.get_device_name_by_sn(
                 self.pvar.selected_device_serial_number
             )
@@ -256,6 +259,10 @@ class pscript(lys.mclass):
             selected_device_range,
             "Analog input range in volts.",
         )
+
+        # If worksheet is running disable all properties
+        if worksheet_is_running:
+            dlg.EnableAll(False)
 
     def DlgOk(self, dlg):
         """
