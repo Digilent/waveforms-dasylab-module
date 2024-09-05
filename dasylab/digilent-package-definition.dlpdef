@@ -2,7 +2,7 @@
 <pi>
  <PackageMeta Locale="en" Status="Alpha">
   <PackageId Value="digilent"/>
-  <Version VMajor="1" VMinor="0" VRelease="0" VBuild="40"/>
+  <Version VMajor="1" VMinor="0" VRelease="0" VBuild="42"/>
   <DisplayName Value="Digilent"/>
   <Vendor Value="Digilent"/>
   <Group Value="Digilent"/>

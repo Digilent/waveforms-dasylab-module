@@ -9,10 +9,11 @@ from digilent_waveforms_dasylab._version import __version__
 from ctypes import *  # type: ignore
 from digilent_waveforms import Manager, Device, DeviceInfo
 from digilent_waveforms_dasylab.components.Logger import Logger
+from digilent_waveforms_dasylab.components.DeviceManager import DeviceManager
 
 # Config logging level
 DEBUG = True
-Logger.setLevel(logging.DEBUG)
+Logger.setLevel(logging.WARN)
 
 # If debugging is enabled, import the debugpy library and start listening for the debugger (VScode is recommended)
 if DEBUG:
@@ -27,87 +28,6 @@ class SettingName(Enum):
     SelectedDevice = "Device"
     SampleRate = "Sample rate"
     Range = "Input range"
-
-
-class DeviceManager:
-
-    def __init__(self, wf_manager: Manager):
-        self.wf_manager = wf_manager
-        self.names = []
-        self.serial_numbers = []
-        self.device_details = []
-        self.enumerate_devices()
-
-        Logger.debug(f"Device names: {self.names}")
-        Logger.debug(f"serial_numbers: {self.serial_numbers}")
-        # Logger.debug(f"device_details: {self.device_details}")
-
-    def enumerate_devices(self) -> None:
-        self.device_details = self.wf_manager.get_devices_info()
-
-        self.names = []
-        for device_info in self.device_details:
-            self.names.append(f"{device_info.name} ({device_info.serial_number})")
-            self.serial_numbers.append(device_info.serial_number)
-
-    def get_all_device_names(self) -> list[str]:
-        return self.names
-
-    def get_all_device_serial_numbers(self) -> list[str]:
-        return self.serial_numbers
-
-    def get_device_name_by_sn(self, serial_number: str) -> str:
-        try:
-            index = self.get_index_by_sn(serial_number)
-            return self.names[index]
-        except Exception as e:
-            raise e
-
-    def get_device_sn_by_name(self, device_name: str) -> str:
-        try:
-            index = self.get_index_by_name(device_name)
-            return self.serial_numbers[index]
-        except Exception as e:
-            raise e
-
-    def get_index_by_sn(self, serial_number: str) -> int:
-        try:
-            index = self.serial_numbers.index(serial_number)
-            return index
-        except Exception as e:
-            # If a device with the specified name does not exist, raise exception
-            msg = f"A device with the specified serial number ({serial_number}) is not available"
-            raise Exception(msg)
-
-    def get_index_by_name(self, device_name: str) -> int:
-        try:
-            return self.names.index(device_name)
-        except Exception as e:
-            # If a device with the specified name does not exist, raise exception
-            msg = f"A device with the specified name ({device_name}) is not available - {e}"
-            raise Exception(msg)
-
-    def open_device_by_serial_number(self, serial_number: str):
-        try:
-            # Close any existing device handles and re-enumerate device devices
-            self.wf_manager.close_all_devices()            
-            self.enumerate_devices()
-
-            # Find device index by serial number
-            index = self.get_index_by_sn(serial_number)
-
-            # If a device with the specified serial number does not exist, bail
-            if index <= -1:
-                msg = f"A device with the specified serial number ({serial_number}) is not available"
-                raise Exception(msg)
-
-            # Open the device and return it
-            device = self.wf_manager.open_device(index)
-            return device
-        except Exception as e:
-            self.wf_manager.close_all_devices()         
-            raise e
-
 
 class info(object):
     """
@@ -220,12 +140,11 @@ class pscript(lys.mclass):
             # TODO: Determine best action.  First device may be busy, but that may be better than none selected
             # NOTE: If a device has been saved in the worksheet (ie in info) it has already been loaded into pvar in the load() function
             # If no device has been selected, default to first device  
-               # NOTE: Probably not a good idea to do this since the device may be in use.  either handle that case or just make the user select the device manually
+               # NOTE: May not a good idea to do this since the device may be in use.  either handle that case or just make the user select the device manually
             if not self.pvar.selected_device_serial_number:
                 Logger.debug("No device selected - defaulting to first device")
                 self.pvar.device_manager.enumerate_devices()
                 self.pvar.selected_device_serial_number = self.pvar.device_manager.serial_numbers[0]
-                
 
             # Update device parameter options
             if self.pvar.selected_device_serial_number:
@@ -324,8 +243,7 @@ class pscript(lys.mclass):
     def Load(self):
         """
         Called once when worksheet is loaded.  Use to validate / init saved variables
-        """
-        print("load()")
+        """        
         self.load_saved_selected_device()
         self.refresh_device_parameter_options()
 
@@ -377,7 +295,7 @@ class pscript(lys.mclass):
             self.pvar.wf_manager.close_all_devices()
             self.pvar.wf_device = None
         except Exception as e:
-            print(e)
+            Logger.error(e)
             Ly.StopExperiment()
 
     def SetupFifo(self, channel):
@@ -500,7 +418,7 @@ class pscript(lys.mclass):
 
     def wait_for_debug_client(self) -> None:
         if DEBUG:
-            print("Waiting for debugger to connect")
+            Logger.debug("Waiting for debugger to connect")
             debugpy.wait_for_client()
 
     def load_saved_selected_device(self) -> None:
