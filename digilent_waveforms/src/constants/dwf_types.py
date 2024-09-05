@@ -1,15 +1,4 @@
-# from typing_extensions import TypedDict
 from enum import Enum
-
-# DeviceInfo = TypedDict(
-#     "DeviceInfo",
-#     {
-#         "id": int,
-#         "name": str,
-#         "revision": int,
-#         "serial_number": str,
-#     },
-# )
 
 
 class DeviceType(Enum):
@@ -20,6 +9,8 @@ class DeviceType(Enum):
     ADP3X50 = 6
     ADP5250 = 8
     DPS3340 = 9
+    ANALOG_DISCOVERY_3 = 10
+    ADP2230 = 14
 
     def to_str(self) -> str:
         if self.value == 1:
@@ -29,12 +20,37 @@ class DeviceType(Enum):
         if self.value == 3:
             return "Analog Discovery 2"
         if self.value == 4:
-            return "Analog Discovery 3"
+            return "Digital Discovery"
         if self.value == 6:
             return "Analog Discovery Pro 3x50"
         if self.value == 8:
             return "Analog Discovery Pro 5250"
         if self.value == 9:
             return "Analog Discovery Pro 3340"
+        if self.value == 10:
+            return "Analog Discovery 3"
+        if self.value == 14:
+            return "Analog Discovery Pro 2230"
         else:
             return f"Unknown device type ({self.value})"
+
+
+class DeviceCloseBehavior(Enum):
+    ContinueRunning = 0
+    StopRunning = 1
+    Shutdown = 2
+
+
+class DeviceInfo:
+    index: int
+    type: DeviceType
+    name: str
+    serial_number: str
+    revision: int
+
+    def __init__(self, index: int, type: DeviceType, name: str, serial_number: str, revision: int):
+        self.index = index
+        self.type = type
+        self.name = name
+        self.serial_number = serial_number
+        self.revision = revision

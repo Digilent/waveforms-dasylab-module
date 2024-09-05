@@ -1,1 +1,4 @@
 **/__pycache__/
+**/build/
+
+/python_dependencies/

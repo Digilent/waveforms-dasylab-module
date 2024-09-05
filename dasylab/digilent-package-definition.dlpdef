@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pi>
+ <PackageMeta Locale="en" Status="Alpha">
+  <PackageId Value="digilent"/>
+  <Version VMajor="1" VMinor="0" VRelease="0" VBuild="42"/>
+  <DisplayName Value="Digilent"/>
+  <Vendor Value="Digilent"/>
+  <Group Value="Digilent"/>
+      Support for Digilent devices
+    </PackageMeta>
+ <Files Count="4">
+  <Row File="digilent_waveforms" Dest="%AppDir%\python\Lib\site-packages" Action="Dir" Param=""/>
+  <Row File="digilent.dly" Dest="%AppDir%" Action="Slot" Param=""/>
+  <Row File="digilent_waveforms_dasylab" Dest="%AppDir%\python\Lib\site-packages" Action="Dir" Param=""/>
+  <Row File="debugpy" Dest="%AppDir%\python\Lib\site-packages" Action="Dir" Param=""/>
+ </Files>
+ <Constraints/>
+</pi>
